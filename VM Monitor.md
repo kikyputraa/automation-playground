@@ -1,45 +1,33 @@
+# Monitoring Setup (Prometheus + Grafana)
 
-# Instalasi Prometheus dan Grafana
+Manual installation guide for **Prometheus** and **Grafana** on Ubuntu/Debian.
 
-Panduan ini menjelaskan cara menginstal **Prometheus** dan **Grafana** secara manual di sistem **Ubuntu/Debian**.
-
-Anda bisa menggunakan tutorial ini atau Menggunakan Skrip Ansible.
+> You can also use the Ansible playbook: `playbook/systemd/monitor/monitor.yml`
 
 ---
 
-## 1. Install dan Konfigurasi Prometheus
+## 1. Install Prometheus
 
-### Download dan Ekstrak Prometheus
-
-```bash
-wget https://github.com/prometheus/prometheus/releases/download/v2.51.2/prometheus-2.51.2.linux-amd64.tar.gz -O /tmp/prometheus.tar.gz
+```sh
+# Download and extract
+wget https://github.com/prometheus/prometheus/releases/download/v2.51.2/prometheus-2.51.2.linux-amd64.tar.gz \
+  -O /tmp/prometheus.tar.gz
 tar -xzf /tmp/prometheus.tar.gz -C /opt/
 sudo mv /opt/prometheus-2.51.2.linux-amd64 /opt/prometheus
-```
 
-### Buat User Khusus Prometheus
-
-```bash
+# Create dedicated user
 sudo useradd --no-create-home --shell /sbin/nologin prometheus
-```
-
-### Atur Hak Akses
-
-```bash
 sudo chown -R prometheus:prometheus /opt/prometheus
-```
 
-### Buat Direktori Data (opsional)
-
-```bash
+# Create data directory
 sudo mkdir -p /data
 sudo chown prometheus:prometheus /data
 sudo chmod 755 /data
 ```
 
-### Tambahkan Konfigurasi `prometheus.yml`
+### Configure Prometheus
 
-Buat file `/opt/prometheus/prometheus.yml` dengan isi (contoh minimal):
+Create `/opt/prometheus/prometheus.yml`:
 
 ```yaml
 global:
@@ -51,21 +39,14 @@ scrape_configs:
       - targets: ["localhost:9090"]
 ```
 
-> Atur owner:
-
-```bash
+```sh
 sudo chown prometheus:prometheus /opt/prometheus/prometheus.yml
 ```
 
-### Buat Service Systemd untuk Prometheus
+### Create systemd Service
 
-```bash
-sudo nano /etc/systemd/system/prometheus.service
-```
-
-Isi dengan:
-
-```ini
+```sh
+sudo tee /etc/systemd/system/prometheus.service > /dev/null <<EOF
 [Unit]
 Description=Prometheus Monitoring
 After=network.target
@@ -78,91 +59,65 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-```
+EOF
 
-Aktifkan dan mulai servicenya:
-
-```bash
-sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
-sudo systemctl start prometheus
-sudo systemctl enable prometheus
+sudo systemctl enable --now prometheus
 ```
 
 ---
 
-## 2. Instalasi Grafana
+## 2. Install Grafana
 
-### Tambahkan GPG Key & Repository Grafana
+```sh
+# Add GPG key and repository
+wget -q -O - https://packages.grafana.com/gpg.key | gpg --dearmor \
+  | sudo tee /usr/share/keyrings/grafana-keyring.gpg > /dev/null
 
-```bash
-wget -q -O - https://packages.grafana.com/gpg.key | gpg --dearmor | sudo tee /usr/share/keyrings/grafana-keyring.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/grafana-keyring.gpg] https://packages.grafana.com/oss/deb stable main" \
+  | sudo tee /etc/apt/sources.list.d/grafana.list
 
-echo "deb [signed-by=/usr/share/keyrings/grafana-keyring.gpg] https://packages.grafana.com/oss/deb stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
-```
-
-### Update APT dan Install Grafana
-
-```bash
-sudo apt update
-sudo apt install -y grafana
-```
-
-### Start dan Enable Grafana
-
-```bash
-sudo systemctl start grafana-server
-sudo systemctl enable grafana-server
+# Install
+sudo apt update && sudo apt install -y grafana
+sudo systemctl enable --now grafana-server
 ```
 
 ---
 
-## 3. Tambahkan Dashboard di Grafana (Opsional)
+## 3. Add Dashboard to Grafana (Optional)
 
-### Buat Direktori Dashboard
-
-```bash
+```sh
+# Create dashboard directory
 sudo mkdir -p /var/lib/grafana/dashboards
 sudo chown grafana:grafana /var/lib/grafana/dashboards
-```
 
-### Tambahkan File Provisioning
-
-**File: `/etc/grafana/provisioning/dashboards/dashboard.yml`**
-
-```yaml
-apiVersion: 1
-
-providers:
-  - name: 'default'
-    orgId: 1
-    folder: ''
-    type: file
-    disableDeletion: false
-    editable: true
-    options:
-      path: /var/lib/grafana/dashboards
-```
-
-**File: `/var/lib/grafana/dashboards/default.json`**  
-(Salin file JSON dashboard dari template yang telah kamu buat)
-
-```bash
+# Copy dashboard JSON
 sudo cp dashboard.json /var/lib/grafana/dashboards/default.json
 sudo chown grafana:grafana /var/lib/grafana/dashboards/default.json
 ```
 
-Lalu restart Grafana:
+Create provisioning config at `/etc/grafana/provisioning/dashboards/dashboard.yml`:
 
-```bash
+```yaml
+apiVersion: 1
+providers:
+  - name: default
+    orgId: 1
+    folder: ''
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
+```
+
+```sh
 sudo systemctl restart grafana-server
 ```
 
 ---
 
-## 4. Buka Port Firewall (UFW)
+## 4. Open Firewall Ports
 
-```bash
+```sh
 sudo ufw allow 9090/tcp   # Prometheus
 sudo ufw allow 3000/tcp   # Grafana
 sudo ufw reload
@@ -170,9 +125,9 @@ sudo ufw reload
 
 ---
 
-## 5. Akses Web
+## 5. Access
 
-- **Prometheus**: http://localhost:9090  
-- **Grafana**: http://localhost:3000 (login default: `admin` / `admin`)
-
----
+| Service | URL | Default Credentials |
+|---|---|---|
+| Prometheus | http://localhost:9090 | — |
+| Grafana | http://localhost:3000 | admin / admin |

@@ -1,57 +1,104 @@
-# DevOps Automation Project: Infrastructure as Code & Configuration Management
+# DevOps Automation Project
 
----
-
-### 🏗️ Infrastructure & Automation
 ![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?style=for-the-badge&logo=terraform&logoColor=white)
 ![Ansible](https://img.shields.io/badge/ansible-%231A1918.svg?style=for-the-badge&logo=ansible&logoColor=white)
-
-### 🌐 Services Automation
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![Nginx](https://img.shields.io/badge/nginx-%23009639.svg?style=for-the-badge&logo=nginx&logoColor=white)
 ![WordPress](https://img.shields.io/badge/WordPress-%2321759B.svg?style=for-the-badge&logo=WordPress&logoColor=white)
 ![Nextcloud](https://img.shields.io/badge/Nextcloud-%230082C9.svg?style=for-the-badge&logo=Nextcloud&logoColor=white)
 ![Owncloud](https://img.shields.io/badge/ownCloud-%231D2D44.svg?style=for-the-badge&logo=ownCloud&logoColor=white)
-
-### 📊 Monitoring Stack
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=Prometheus&logoColor=white)
 ![Grafana](https://img.shields.io/badge/grafana-%23F46800.svg?style=for-the-badge&logo=grafana&logoColor=white)
-![Node Exporter](https://img.shields.io/badge/Node%20Exporter-F46800?style=for-the-badge&logo=prometheus&logoColor=white)
+
+Infrastructure automation project using **Terraform** for VM provisioning and **Ansible** for service deployment. Runs on-premises with **Proxmox**.
 
 ---
 
-This repository contains an infrastructure automation project leveraging **Infrastructure as Code (IaC)** methodologies. This project combines the power of **Terraform** for Virtual Machine (VM) provisioning and **Ansible** for configuration management and automated installation of various popular services.
+## Project Structure
 
-## 🚀 Key Features
+```
+terraform/                        → VM provisioning on Proxmox
+playbook/
+  systemd/                        → Deploy services as systemd units
+    cloud/                        → Nextcloud, OwnCloud
+    docker/                       → Docker + Nginx, Docker + Kubernetes
+    monitor/                      → Prometheus + Grafana
+    wordpress/                    → WordPress
+  dockerize/                      → Deploy services as Docker containers
+    install_docker.yml            → Install Docker (run this first)
+    monitoring_stack.yml          → Prometheus + Grafana (single stack)
+    prometheus.yml
+    grafana.yml
+    wordpress.yml
+    nextcloud.yml
+    owncloud.yml
+    nginx.yml
+```
 
-- **Automated Provisioning**: Automatically create and configure new VMs using Terraform.
-- **Multi-Service Deployment**: Automated installation of various services via Ansible Playbooks:
-  - **Web Server & CMS**: Nginx, WordPress.
-  - **Cloud Storage**: Nextcloud, Owncloud.
-  - **Containerization**: Docker, Kubernetes (K8s).
-  - **Monitoring Stack**: Automated setup for system performance monitoring.
-- **Monitoring Tutorial**: Includes a comprehensive guide for setting up Prometheus, Grafana, and Node Exporter.
-- **VM Template Tutorial**: Documentation on setting up VM templates to be deployed via Terraform.
+---
 
-## 🛠️ Tools Used
+## Prerequisites
+
+- [Terraform](https://www.terraform.io/downloads)
+- [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
+- SSH key configured for VM access
+- Proxmox server with a prepared VM template
+
+> See [VM Utama.md](VM%20Utama.md) and [VM Template.md](VM%20Template.md) for setup guides.
+
+---
+
+## Quick Start
+
+### 1. Provision VMs with Terraform
+
+Edit `terraform/main.tf` to match your Proxmox environment, then:
+
+```sh
+cd terraform
+terraform init
+terraform apply
+```
+
+### 2. Deploy a Service
+
+**Option A — systemd** (installs directly on the OS):
+```sh
+ansible-playbook playbook/systemd/wordpress/wordpress.yml
+```
+
+**Option B — Docker** (runs as containers):
+```sh
+# Install Docker first (one-time per VM)
+ansible-playbook playbook/dockerize/install_docker.yml
+
+# Deploy the service
+ansible-playbook playbook/dockerize/wordpress.yml
+```
+
+### Available Services
+
+| Service | systemd | Docker |
+|---|---|---|
+| WordPress | `systemd/wordpress/wordpress.yml` | `dockerize/wordpress.yml` |
+| Nextcloud | `systemd/cloud/nextcloud.yml` | `dockerize/nextcloud.yml` |
+| OwnCloud | `systemd/cloud/owncloud.yml` | `dockerize/owncloud.yml` |
+| Prometheus + Grafana | `systemd/monitor/monitor.yml` | `dockerize/monitoring_stack.yml` |
+| Prometheus only | — | `dockerize/prometheus.yml` |
+| Grafana only | — | `dockerize/grafana.yml` |
+| Nginx | `systemd/docker/dockeronly.yml` | `dockerize/nginx.yml` |
+| Kubernetes | `systemd/docker/docking_kubernets.yml` | — |
+
+---
+
+## Tools
 
 | Tool | Purpose |
-| --- | --- |
-| **Terraform** | Infrastructure automation (VM Provisioning). |
-| **Ansible** | Software configuration automation and application deployment. |
-| **Prometheus** | Monitoring system and time-series database. |
-| **Grafana** | Data visualization and monitoring dashboards. |
-| **Docker** | Containerization platform. |
-| **Kubernetes** | Container orchestration. |
-
-## 📋 Prerequisites
-
-Before running this project, ensure you have installed:
-
-1. [Terraform](https://www.terraform.io/downloads) (Latest version recommended).
-2. [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html).
-3. Configured **SSH Keys** for VM access.
-4. A **Cloud/Virtualization Provider** (e.g., AWS, GCP, Azure, or Proxmox) with prepared credentials.
-
-> **NOTE:** The author uses **Proxmox** running on an On-Premises server.
+|---|---|
+| Terraform | VM provisioning on Proxmox |
+| Ansible | Service configuration and deployment |
+| Prometheus | Metrics collection and monitoring |
+| Grafana | Metrics visualization |
+| Docker | Container runtime |
+| Kubernetes | Container orchestration |
