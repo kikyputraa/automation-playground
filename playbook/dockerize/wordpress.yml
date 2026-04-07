@@ -1,0 +1,63 @@
+---
+# Deploy WordPress + MySQL
+- name: Deploy WordPress
+  hosts: localhost
+  become: yes
+
+  vars:
+    deploy_dir: /opt/wordpress
+
+  tasks:
+    - name: Create deploy directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Write docker-compose.yml
+      copy:
+        dest: "{{ deploy_dir }}/docker-compose.yml"
+        content: |
+          services:
+            db:
+              image: mysql:8.0
+              container_name: wordpress_db
+              volumes:
+                - db_data:/var/lib/mysql
+              environment:
+                MYSQL_ROOT_PASSWORD: rootpassword
+                MYSQL_DATABASE: wordpress
+                MYSQL_USER: wpuser
+                MYSQL_PASSWORD: wppassword
+              restart: unless-stopped
+
+            wordpress:
+              image: wordpress:latest
+              container_name: wordpress
+              depends_on:
+                - db
+              volumes:
+                - wp_data:/var/www/html
+              ports:
+                - "80:80"
+              environment:
+                WORDPRESS_DB_HOST: db:3306
+                WORDPRESS_DB_NAME: wordpress
+                WORDPRESS_DB_USER: wpuser
+                WORDPRESS_DB_PASSWORD: wppassword
+              restart: unless-stopped
+
+          volumes:
+            db_data:
+            wp_data:
+
+    - name: Build and start containers
+      command: docker compose up -d --build
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Open firewall port
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp

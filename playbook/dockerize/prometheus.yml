@@ -1,0 +1,60 @@
+---
+# Deploy Prometheus standalone
+- name: Deploy Prometheus
+  hosts: localhost
+  become: yes
+
+  vars:
+    deploy_dir: /opt/prometheus
+
+  tasks:
+    - name: Create deploy directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Write prometheus.yml config
+      copy:
+        dest: "{{ deploy_dir }}/prometheus.yml"
+        content: |
+          global:
+            scrape_interval: 15s
+
+          scrape_configs:
+            - job_name: "prometheus"
+              static_configs:
+                - targets: ["localhost:9090"]
+
+            - job_name: "node-exporter"
+              static_configs:
+                - targets: ["192.168.1.100:9100", "192.168.1.6:9100"]
+
+    - name: Write docker-compose.yml
+      copy:
+        dest: "{{ deploy_dir }}/docker-compose.yml"
+        content: |
+          services:
+            prometheus:
+              image: prom/prometheus:v2.51.2
+              container_name: prometheus
+              volumes:
+                - ./prometheus.yml:/etc/prometheus/prometheus.yml
+                - prometheus_data:/prometheus
+              ports:
+                - "9090:9090"
+              restart: unless-stopped
+
+          volumes:
+            prometheus_data:
+
+    - name: Build and start container
+      command: docker compose up -d --build
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Open firewall port
+      ufw:
+        rule: allow
+        port: "9090"
+        proto: tcp

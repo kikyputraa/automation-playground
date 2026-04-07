@@ -1,0 +1,77 @@
+---
+# Deploy Prometheus + Grafana sebagai satu stack
+- name: Deploy Monitoring Stack
+  hosts: localhost
+  become: yes
+
+  vars:
+    deploy_dir: /opt/monitoring
+
+  tasks:
+    - name: Create deploy directory
+      file:
+        path: "{{ deploy_dir }}/prometheus"
+        state: directory
+        mode: '0755'
+
+    - name: Write prometheus.yml config
+      copy:
+        dest: "{{ deploy_dir }}/prometheus/prometheus.yml"
+        content: |
+          global:
+            scrape_interval: 15s
+
+          scrape_configs:
+            - job_name: "prometheus"
+              static_configs:
+                - targets: ["prometheus:9090"]
+
+            - job_name: "node-exporter"
+              static_configs:
+                - targets: ["192.168.1.100:9100", "192.168.1.6:9100"]
+
+    - name: Write docker-compose.yml
+      copy:
+        dest: "{{ deploy_dir }}/docker-compose.yml"
+        content: |
+          services:
+            prometheus:
+              image: prom/prometheus:v2.51.2
+              container_name: prometheus
+              volumes:
+                - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+                - prometheus_data:/prometheus
+              ports:
+                - "9090:9090"
+              restart: unless-stopped
+
+            grafana:
+              image: grafana/grafana:latest
+              container_name: grafana
+              depends_on:
+                - prometheus
+              volumes:
+                - grafana_data:/var/lib/grafana
+              ports:
+                - "3000:3000"
+              environment:
+                GF_SECURITY_ADMIN_PASSWORD: admin
+              restart: unless-stopped
+
+          volumes:
+            prometheus_data:
+            grafana_data:
+
+    - name: Build and start containers
+      command: docker compose up -d --build
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Open firewall ports
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "9090"
+        - "3000"
