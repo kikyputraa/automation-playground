@@ -1,0 +1,47 @@
+---
+# Deploy PostgreSQL sebagai container
+- name: Deploy PostgreSQL
+  hosts: localhost
+  become: yes
+
+  vars:
+    deploy_dir: /opt/postgresql
+
+  tasks:
+    - name: Create deploy directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Write docker-compose.yml
+      copy:
+        dest: "{{ deploy_dir }}/docker-compose.yml"
+        content: |
+          services:
+            postgres:
+              image: postgres:16
+              container_name: postgres
+              volumes:
+                - pg_data:/var/lib/postgresql/data
+              ports:
+                - "5432:5432"
+              environment:
+                POSTGRES_DB: mydb
+                POSTGRES_USER: dbuser
+                POSTGRES_PASSWORD: dbpassword
+              restart: unless-stopped
+
+          volumes:
+            pg_data:
+
+    - name: Build and start container
+      command: docker compose up -d --build
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Open PostgreSQL port through UFW
+      ufw:
+        rule: allow
+        port: "5432"
+        proto: tcp

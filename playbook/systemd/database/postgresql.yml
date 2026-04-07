@@ -1,0 +1,58 @@
+---
+# Install PostgreSQL Server sebagai systemd service
+- name: Install PostgreSQL
+  hosts: localhost
+  become: yes
+
+  vars:
+    pg_db: mydb
+    pg_user: dbuser
+    pg_password: dbpassword
+
+  tasks:
+    - name: Update APT cache
+      apt:
+        update_cache: yes
+
+    - name: Install PostgreSQL
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3-psycopg2
+        state: present
+
+    - name: Start and enable PostgreSQL
+      systemd:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Create database user
+      become_user: postgres
+      postgresql_user:
+        name: "{{ pg_user }}"
+        password: "{{ pg_password }}"
+        state: present
+
+    - name: Create database
+      become_user: postgres
+      postgresql_db:
+        name: "{{ pg_db }}"
+        owner: "{{ pg_user }}"
+        state: present
+
+    - name: Grant privileges
+      become_user: postgres
+      postgresql_privs:
+        db: "{{ pg_db }}"
+        role: "{{ pg_user }}"
+        privs: ALL
+        type: database
+        state: present
+
+    - name: Open PostgreSQL port through UFW
+      ufw:
+        rule: allow
+        port: "5432"
+        proto: tcp

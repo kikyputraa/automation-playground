@@ -1,0 +1,48 @@
+---
+# Deploy MySQL sebagai container
+- name: Deploy MySQL
+  hosts: localhost
+  become: yes
+
+  vars:
+    deploy_dir: /opt/mysql
+
+  tasks:
+    - name: Create deploy directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Write docker-compose.yml
+      copy:
+        dest: "{{ deploy_dir }}/docker-compose.yml"
+        content: |
+          services:
+            mysql:
+              image: mysql:8.0
+              container_name: mysql
+              volumes:
+                - mysql_data:/var/lib/mysql
+              ports:
+                - "3306:3306"
+              environment:
+                MYSQL_ROOT_PASSWORD: rootpassword
+                MYSQL_DATABASE: mydb
+                MYSQL_USER: dbuser
+                MYSQL_PASSWORD: dbpassword
+              restart: unless-stopped
+
+          volumes:
+            mysql_data:
+
+    - name: Build and start container
+      command: docker compose up -d --build
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Open MySQL port through UFW
+      ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp

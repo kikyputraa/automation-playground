@@ -1,0 +1,65 @@
+---
+# Install Node Exporter sebagai systemd service
+- name: Install Node Exporter
+  hosts: localhost
+  become: yes
+
+  tasks:
+    - name: Create node_exporter user
+      user:
+        name: node_exporter
+        shell: /bin/false
+        create_home: no
+        state: present
+
+    - name: Download Node Exporter
+      get_url:
+        url: https://github.com/prometheus/node_exporter/releases/download/v1.9.0/node_exporter-1.9.0.linux-amd64.tar.gz
+        dest: /tmp/node_exporter.tar.gz
+
+    - name: Extract Node Exporter
+      unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Move Node Exporter binary
+      command: mv /tmp/node_exporter-1.9.0.linux-amd64 /opt/node_exporter
+      args:
+        creates: /opt/node_exporter
+
+    - name: Set ownership
+      file:
+        path: /opt/node_exporter
+        owner: node_exporter
+        group: node_exporter
+        recurse: yes
+
+    - name: Create systemd service
+      copy:
+        dest: /etc/systemd/system/node_exporter.service
+        content: |
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+
+          [Service]
+          User=node_exporter
+          ExecStart=/opt/node_exporter/node_exporter
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start and enable Node Exporter
+      systemd:
+        daemon_reload: yes
+        name: node_exporter
+        state: started
+        enabled: yes
+
+    - name: Open Node Exporter port through UFW
+      ufw:
+        rule: allow
+        port: "9100"
+        proto: tcp
