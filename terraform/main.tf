@@ -8,40 +8,37 @@ terraform {
 }
 
 provider "proxmox" {
-  pm_api_url      = "https://192.168.1.6:8006/api2/json"
-  pm_user         = "root@pam"
-  pm_password     = "12345678"
-  pm_tls_insecure = true
-}
-
-variable "vm_count" {
-  description = "Jumlah VM yang akan dibuat"
-  type        = number
-  default     = 4
+  pm_api_url      = var.pm_api_url
+  pm_user         = var.pm_user
+  pm_password     = var.pm_password
+  pm_tls_insecure = var.pm_tls_insecure
 }
 
 resource "proxmox_vm_qemu" "vm" {
   count       = var.vm_count
-  name        = "devops-vm-${count.index + 1}"
-  target_node = "server"  # Ganti dengan nama node Proxmox Anda
-  clone       = "template"  # Ganti dengan nama template VM Anda
+  name        = "${var.vm_name_prefix}-${count.index + 1}"
+  target_node = var.target_node
+  clone       = var.vm_template
+
+  cores   = var.vm_cores
+  sockets = 1
+  memory  = var.vm_memory
 
   disk {
-    size = "25G"
-    type = "scsi"
-    storage = "local-lvm"
+    size    = var.vm_disk_size
+    type    = "scsi"
+    storage = var.vm_storage
   }
 
   network {
     model  = "virtio"
-    bridge = "vmbr0"
+    bridge = var.vm_bridge
   }
+
+  # Inject SSH public key via cloud-init
+  sshkeys = var.ssh_public_key
 
   provisioner "local-exec" {
     command = "echo ${self.default_ipv4_address} >> ~/vm_ips.txt"
   }
-}
-
-output "vm_ips" {
-  value = [for vm in proxmox_vm_qemu.vm : vm.default_ipv4_address]
 }

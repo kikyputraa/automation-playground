@@ -4,6 +4,7 @@
 *.tfstate
 *.tfstate.backup
 *.tfvars
+!*.tfvars.example
 override.tf
 override.tf.json
 

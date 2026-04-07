@@ -1,0 +1,20 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored — never commit real credentials
+
+pm_api_url      = "https://192.168.1.6:8006/api2/json"
+pm_user         = "root@pam"
+pm_password     = "your-proxmox-password"
+pm_tls_insecure = true
+
+target_node    = "server"
+vm_template    = "template"
+vm_count       = 4
+vm_name_prefix = "devops-vm"
+
+vm_cores     = 2
+vm_memory    = 2048
+vm_disk_size = "25G"
+vm_storage   = "local-lvm"
+vm_bridge    = "vmbr0"
+
+ssh_public_key = "ssh-rsa AAAA... your-public-key"
